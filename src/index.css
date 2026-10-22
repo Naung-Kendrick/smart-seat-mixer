@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── TPS Easing tokens ─────────────────────────────────── */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-panel: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #ffffff;
+  background-image: url('./assets/theme-bg.svg');
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+  color: #1a1a1a;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (max-width: 767px) {
+  body {
+    background-position: 70% center;
+  }
+}
+
+/* ── Button active state ──────────────────────────────── */
+button:active {
+  transform: scale(0.97);
+}
+
+/* ── Page entrance ────────────────────────────────────── */
+.tps-page-enter {
+  animation: tps-page-in 160ms var(--ease-out) both;
+}
+
+@keyframes tps-page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Print ────────────────────────────────────────────── */
+@media print {
+  body {
+    background-image: none !important;
+    background-color: white !important;
+  }
+
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+
+  .table-grid-print {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .print-card {
+    background: white !important;
+    border: 1px solid #ccc !important;
+    break-inside: avoid;
+  }
+}
