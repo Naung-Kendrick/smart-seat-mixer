@@ -121,6 +121,57 @@ export function playGenerateSong() {
   });
 }
 
+// ── Table Reveal Sound (Suspense roll + Chime) ─────────────
+export function playRevealSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0.2, now);
+  master.connect(ctx.destination);
+
+  // Rapid slot ticker (0 to 0.28s)
+  for (let i = 0; i < 5; i++) {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    const t = now + i * 0.05;
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(350 + i * 50, t);
+
+    g.gain.setValueAtTime(0.12, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+
+    osc.connect(g);
+    g.connect(master);
+
+    osc.start(t);
+    osc.stop(t + 0.04);
+  }
+
+  // Triumphant reveal chime (0.3s)
+  const chimeNotes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+  chimeNotes.forEach((freq, idx) => {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    const t = now + 0.28 + idx * 0.07;
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(0.28, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+
+    osc.connect(g);
+    g.connect(master);
+
+    osc.start(t);
+    osc.stop(t + 0.5);
+  });
+}
+
 // ── Custom Audio File Upload Support ───────────────────────
 export function setCustomAudioSource(url) {
   if (!customAudio) {
@@ -128,3 +179,4 @@ export function setCustomAudioSource(url) {
   }
   customAudio.src = url;
 }
+

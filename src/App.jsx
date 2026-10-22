@@ -5,8 +5,9 @@ import { loadState, saveState, resetState } from './storage';
 import TableCard from './components/TableCard';
 import HistoryModal from './components/HistoryModal';
 import ConfirmDialog from './components/ConfirmDialog';
+import SpotlightModal from './components/SpotlightModal';
 import logo from './assets/logo.png';
-import { playGenerateSong, setCustomAudioSource } from './audioEngine';
+import { playGenerateSong, playRevealSound, setCustomAudioSource } from './audioEngine';
 
 // ── Icons (stroke-only SVG, matching architectural weight) ───
 
@@ -71,6 +72,11 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [customSongName, setCustomSongName] = useState('');
+  const [spotlightTable, setSpotlightTable] = useState(null);
+  const [revealedTables, setRevealedTables] = useState(() => {
+    const s = loadState();
+    return s.rounds.length > 0 ? new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) : new Set();
+  });
   const [currentTables, setCurrentTables] = useState(() => {
     const s = loadState();
     return s.rounds.length > 0 ? s.rounds[s.rounds.length - 1].tables : null;
@@ -83,6 +89,7 @@ export default function App() {
       if (e.key === 'Escape') {
         setShowHistory(false);
         setShowConfirm(false);
+        setSpotlightTable(null);
       }
     };
     window.addEventListener('keydown', handler);
@@ -104,32 +111,83 @@ export default function App() {
     if (soundEnabled) {
       playGenerateSong();
     }
-    setState((prev) => {
-      const tables = smartAssign(prev.pairMatrix, prev.lastTableMap);
+    const tables = smartAssign(state.pairMatrix, state.lastTableMap);
 
-      let newMatrix = { ...prev.pairMatrix };
-      tables.forEach((table) => {
-        newMatrix = addPairings(newMatrix, table);
-      });
+    let newMatrix = { ...state.pairMatrix };
+    tables.forEach((table) => {
+      newMatrix = addPairings(newMatrix, table);
+    });
 
-      const newLastTable = {};
-      tables.forEach((table, tIdx) => {
-        table.forEach((sIdx) => { newLastTable[sIdx] = tIdx; });
-      });
+    const newLastTable = {};
+    tables.forEach((table, tIdx) => {
+      table.forEach((sIdx) => { newLastTable[sIdx] = tIdx; });
+    });
 
-      const newRound = { tables, timestamp: new Date().toISOString() };
-      setCurrentTables(tables);
+    const newRound = { tables, timestamp: new Date().toISOString() };
+    const nextRounds = [...state.rounds, newRound];
 
-      const next = {
-        rounds: [...prev.rounds, newRound],
-        pairMatrix: newMatrix,
-        lastTableMap: newLastTable,
-      };
+    setState({
+      rounds: nextRounds,
+      pairMatrix: newMatrix,
+      lastTableMap: newLastTable,
+    });
+    setCurrentTables(tables);
+    // All 10 tables start locked / unrevealed for manual step-by-step reveal
+    setRevealedTables(new Set());
+    setSpotlightTable(null);
 
-      queueMicrotask(() => addToast(`Round ${next.rounds.length} generated`));
+    addToast(`Round ${nextRounds.length} generated! Click any table to reveal.`);
+  }, [state, soundEnabled, addToast]);
+
+  // ── Reveal Actions ─────────────────────────────────────
+
+  const handleRevealTable = useCallback((tIdx, openSpotlight = true) => {
+    setRevealedTables((prev) => {
+      const next = new Set(prev);
+      next.add(tIdx);
       return next;
     });
-  }, [addToast]);
+    if (soundEnabled) {
+      playRevealSound();
+    }
+    if (openSpotlight) {
+      setSpotlightTable(tIdx);
+    }
+  }, [soundEnabled]);
+
+  const handleRevealNext = useCallback(() => {
+    if (!currentTables) return;
+    for (let i = 0; i < currentTables.length; i++) {
+      if (!revealedTables.has(i)) {
+        handleRevealTable(i, true);
+        return;
+      }
+    }
+    addToast('All 10 tables are already revealed');
+  }, [currentTables, revealedTables, handleRevealTable, addToast]);
+
+  const handleRevealAll = useCallback(() => {
+    if (!currentTables) return;
+    setRevealedTables(new Set(currentTables.map((_, i) => i)));
+    if (soundEnabled) {
+      playRevealSound();
+    }
+    addToast('All tables revealed');
+  }, [currentTables, soundEnabled, addToast]);
+
+  // Next table calculation for spotlight navigation
+  const nextUnrevealedIdx = currentTables
+    ? currentTables.findIndex((_, idx) => !revealedTables.has(idx))
+    : -1;
+  const hasNextTable = nextUnrevealedIdx !== -1;
+
+  const handleSpotlightNext = useCallback(() => {
+    if (nextUnrevealedIdx !== -1) {
+      handleRevealTable(nextUnrevealedIdx, true);
+    } else {
+      setSpotlightTable(null);
+    }
+  }, [nextUnrevealedIdx, handleRevealTable]);
 
   // ── Reset ──────────────────────────────────────────────
 
@@ -137,6 +195,8 @@ export default function App() {
     const fresh = resetState();
     setState(fresh);
     setCurrentTables(null);
+    setRevealedTables(new Set());
+    setSpotlightTable(null);
     setShowConfirm(false);
     addToast('History reset');
   }, [addToast]);
@@ -148,6 +208,8 @@ export default function App() {
       addToast('Generate a seating first');
       return;
     }
+    // Reveal all for printing
+    setRevealedTables(new Set(currentTables.map((_, i) => i)));
     window.print();
   }, [currentTables, addToast]);
 
@@ -285,6 +347,34 @@ export default function App() {
             Reset
           </button>
 
+          {/* Interactive Step-by-Step Reveal Controls */}
+          {currentTables && (
+            <>
+              {revealedTables.size < 10 && (
+                <button
+                  id="btn-reveal-next"
+                  onClick={handleRevealNext}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-black text-white text-sm font-bold font-mono tracking-wide border border-black hover:bg-neutral-800 active:bg-neutral-900 transition-colors cursor-pointer shadow-sm animate-pulse"
+                >
+                  <span>⚡ Reveal Next Table</span>
+                  <span className="text-xs bg-neutral-800 text-neutral-300 px-1.5 py-0.5 border border-neutral-600">
+                    {revealedTables.size}/10
+                  </span>
+                </button>
+              )}
+
+              {revealedTables.size < 10 && (
+                <button
+                  id="btn-reveal-all"
+                  onClick={handleRevealAll}
+                  className="inline-flex items-center gap-2 px-3 py-2.5 bg-black text-white text-sm font-semibold font-mono border border-black hover:bg-neutral-800 active:bg-neutral-900 transition-colors cursor-pointer"
+                >
+                  <span>👁️ Reveal All</span>
+                </button>
+              )}
+            </>
+          )}
+
           {/* Sound Toggle — full black bg, white text */}
           <button
             id="btn-sound"
@@ -326,6 +416,7 @@ export default function App() {
           <div className="flex flex-wrap gap-px border border-n-border bg-n-border w-fit">
             <Stat label="Students" value="50" />
             <Stat label="Tables" value="10" />
+            <Stat label="Revealed" value={`${revealedTables.size} / 10`} />
             <Stat label="Unique pairings" value={`${uniquePairs} / ${MAX_PAIRS}`} />
             <Stat label="Mixing" value={`${mixingPct}%`} />
           </div>
@@ -341,7 +432,10 @@ export default function App() {
                 key={`${roundCount}-${tIdx}`}
                 tableIndex={tIdx}
                 studentIndices={students}
-                animDelay={tIdx * 30}
+                isRevealed={revealedTables.has(tIdx)}
+                onReveal={(idx) => handleRevealTable(idx, true)}
+                onSpotlight={(idx) => setSpotlightTable(idx)}
+                animDelay={tIdx * 25}
               />
             ))}
           </div>
@@ -357,6 +451,16 @@ export default function App() {
       </div>
 
       {/* ─── MODALS ─── */}
+      {spotlightTable !== null && currentTables && (
+        <SpotlightModal
+          tableIndex={spotlightTable}
+          studentIndices={currentTables[spotlightTable]}
+          onClose={() => setSpotlightTable(null)}
+          onNextTable={handleSpotlightNext}
+          hasNextTable={hasNextTable}
+          nextTableIndex={nextUnrevealedIdx}
+        />
+      )}
       {showHistory && (
         <HistoryModal rounds={state.rounds} onClose={() => setShowHistory(false)} />
       )}
