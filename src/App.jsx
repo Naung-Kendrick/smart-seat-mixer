@@ -6,6 +6,7 @@ import TableCard from './components/TableCard';
 import HistoryModal from './components/HistoryModal';
 import ConfirmDialog from './components/ConfirmDialog';
 import logo from './assets/logo.png';
+import { playGenerateSong, setCustomAudioSource } from './audioEngine';
 
 // ── Icons (stroke-only SVG, matching architectural weight) ───
 
@@ -33,6 +34,18 @@ const IconTrash = () => (
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
+const IconVolume = ({ muted }) => muted ? (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <line x1="23" y1="9" x2="17" y2="15" />
+    <line x1="17" y1="9" x2="23" y2="15" />
+  </svg>
+) : (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+  </svg>
+);
 
 // ── Toast ────────────────────────────────────────────────
 
@@ -56,6 +69,8 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [customSongName, setCustomSongName] = useState('');
   const [currentTables, setCurrentTables] = useState(() => {
     const s = loadState();
     return s.rounds.length > 0 ? s.rounds[s.rounds.length - 1].tables : null;
@@ -86,6 +101,9 @@ export default function App() {
   // ── Generate ───────────────────────────────────────────
 
   const handleGenerate = useCallback(() => {
+    if (soundEnabled) {
+      playGenerateSong();
+    }
     setState((prev) => {
       const tables = smartAssign(prev.pairMatrix, prev.lastTableMap);
 
@@ -266,6 +284,39 @@ export default function App() {
             <IconTrash />
             Reset
           </button>
+
+          {/* Sound Toggle — full black bg, white text */}
+          <button
+            id="btn-sound"
+            onClick={() => setSoundEnabled((prev) => !prev)}
+            title={soundEnabled ? 'Music: ON (Click to mute)' : 'Music: OFF (Click to unmute)'}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-black text-white text-sm font-semibold font-mono border border-black hover:bg-neutral-800 active:bg-neutral-900 transition-colors cursor-pointer"
+          >
+            <IconVolume muted={!soundEnabled} />
+            <span>{soundEnabled ? 'Song: ON' : 'Song: OFF'}</span>
+          </button>
+
+          {/* Optional Custom Song Uploader */}
+          <label
+            title="Upload your own custom MP3/Audio file for seating generation"
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 bg-black text-neutral-300 hover:text-white text-xs font-mono border border-neutral-700 hover:bg-neutral-800 transition-colors cursor-pointer"
+          >
+            <input
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const url = URL.createObjectURL(file);
+                  setCustomAudioSource(url);
+                  setCustomSongName(file.name.length > 14 ? file.name.slice(0, 12) + '…' : file.name);
+                  addToast(`Loaded song: ${file.name}`);
+                }
+              }}
+            />
+            <span>🎵 {customSongName || 'Custom Song'}</span>
+          </label>
         </div>
       </div>
 
