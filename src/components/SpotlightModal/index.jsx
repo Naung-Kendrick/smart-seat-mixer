@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { STUDENTS, TABLE_LABELS } from '../../students';
+import { STUDENTS } from '../../students';
 
 export default function SpotlightModal({
   tableIndex,
@@ -63,7 +63,7 @@ export default function SpotlightModal({
                 Spotlight Announcement
               </div>
               <h2 className="text-xl font-bold font-mono text-white tracking-tight leading-none uppercase">
-                Table {tableIndex + 1} — {TABLE_LABELS[tableIndex]}
+                Table {tableIndex + 1}
               </h2>
             </div>
           </div>

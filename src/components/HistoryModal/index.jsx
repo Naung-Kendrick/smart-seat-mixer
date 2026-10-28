@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { STUDENTS, TABLE_LABELS } from '../../students';
+import { STUDENTS } from '../../students';
 
 export default function HistoryModal({ rounds, onClose }) {
   const [expandedIdx, setExpandedIdx] = useState(null);
@@ -72,7 +72,7 @@ export default function HistoryModal({ rounds, onClose }) {
                       {round.tables.map((table, tIdx) => (
                         <div key={tIdx} className="mb-2 last:mb-0">
                           <div className="inline-block text-[0.65rem] font-bold text-white bg-black px-2 py-0.5 font-mono mb-1.5">
-                            Table {String(tIdx + 1).padStart(2, '0')} · {TABLE_LABELS[tIdx]}
+                            Table {String(tIdx + 1).padStart(2, '0')}
                           </div>
                           <div className="flex flex-wrap gap-1">
                             {table.map((sIdx) => (

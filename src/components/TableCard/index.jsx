@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { STUDENTS, TABLE_LABELS } from '../../students';
+import { STUDENTS } from '../../students';
 
 export default function TableCard({
   tableIndex,
@@ -52,13 +52,8 @@ export default function TableCard({
           <div className="w-7 h-7 bg-neutral-900 border border-neutral-700 flex items-center justify-center text-white font-mono text-xs font-bold shrink-0">
             {String(tableIndex + 1).padStart(2, '0')}
           </div>
-          <div>
-            <div className="text-sm font-bold text-white leading-tight">
-              Table {tableIndex + 1}
-            </div>
-            <div className="text-[11px] font-mono text-neutral-400">
-              {TABLE_LABELS[tableIndex]}
-            </div>
+          <div className="text-sm font-bold text-white leading-tight">
+            Table {tableIndex + 1}
           </div>
         </div>
 
